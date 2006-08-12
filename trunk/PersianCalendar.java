@@ -5,6 +5,7 @@ import javax.microedition.lcdui.CommandListener;
 import javax.microedition.lcdui.Display;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
+import javax.microedition.lcdui.Item;
 import javax.microedition.lcdui.List;
 import javax.microedition.lcdui.TextField;
 import javax.microedition.midlet.MIDlet;
@@ -16,7 +17,7 @@ import calendar.DayOutOfRangeException;
 import calendar.IslamicDate;
 import calendar.MonthOutOfRangeException;
 import calendar.PersianDate;
-import calendar.AbstractDate;
+import calendar.YearOutOfRangeException;
 
 public class PersianCalendar extends MIDlet implements CommandListener {
 
@@ -59,7 +60,6 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 		// main screen
 		mainAlert = new Alert("\u0627\u0645\u0631\u0648\u0632");
 		mainAlert.setCommandListener(this);
-		// mainAlert.setType(AlertType.CONFIRMATION);
 		mainAlert.setTimeout(Alert.FOREVER);
 
 		exitCommand = new Command("\u062e\u0631\u0648\u062c", Command.OK, 0);
@@ -86,32 +86,6 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 				display.setCurrent(mainAlert);
 			}
 		});
-
-		// date conversion screen
-		dateConvList = new List(
-				"\u062A\u0628\u062F\u064A\u0644\u0020\u0627\u0632",
-				List.IMPLICIT);
-		dateConvList.append("\u0634\u0645\u0633\u064A", null);
-		dateConvList.append("\u0642\u0645\u0631\u064A", null);
-		dateConvList.append("\u0645\u064A\u0644\u0627\u062F\u064A", null);
-		dateConvList.addCommand(backCommand);
-		dateConvList.setCommandListener(new CommandListener() {
-			public void commandAction(Command c, Displayable d) {
-				if (c == List.SELECT_COMMAND) {
-					int selIndex = dateConvList.getSelectedIndex();
-					// lazy initialization
-					if (dateConvForm == null)
-						createDateConvScreens(selIndex);					
-					customizeDateConvForm(selIndex);
-					display.setCurrentItem(dateConvForm.get(0));
-
-				} else { // back command
-					display.setCurrent(mainAlert);
-				}
-			}
-
-		});
-
 	}
 
 	public void startApp() throws MIDletStateChangeException {
@@ -142,8 +116,12 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 			if (command == aboutCommand)
 				display.setCurrent(aboutAlert);
 
-			if (command == dateConvCommand)
+			if (command == dateConvCommand) {
+				if (dateConvList == null)
+					// lazy initialization
+					createDateConvScreens();					
 				display.setCurrent(dateConvList);
+			}
 
 			return;
 		}
@@ -158,20 +136,43 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 		return s;
 	}
 
-	private final void createDateConvScreens(int selIndex) {
+	private final void createDateConvScreens() {
+
+		// Make date conv list, for selecting the source calendar
+		dateConvList = new List(
+				"\u062A\u0628\u062F\u064A\u0644\u0020\u0627\u0632",
+				List.IMPLICIT);
+		dateConvList.append("\u0634\u0645\u0633\u064A", null);
+		dateConvList.append("\u0642\u0645\u0631\u064A", null);
+		dateConvList.append("\u0645\u064A\u0644\u0627\u062F\u064A", null);
+		dateConvList.addCommand(backCommand);
+		dateConvList.setCommandListener(new CommandListener() {
+			public void commandAction(Command c, Displayable d) {
+				if (c == List.SELECT_COMMAND) {
+					customizeDateConvForm(dateConvList.getSelectedIndex());
+					display.setCurrentItem(dateConvForm.get(0));
+				} else { // back command
+					display.setCurrent(mainAlert);
+				}
+			}
+		});
+
 		// Make date conversion form
 		dateConvForm = new Form("");
 
 		TextField yearField = new TextField("\u0633\u0627\u0644", "", 5,
 				TextField.NUMERIC);
+		yearField.setLayout(Item.LAYOUT_RIGHT);
 		dateConvForm.append(yearField);
 
 		TextField monthField = new TextField("\u0645\u0627\u0647", "", 2,
 				TextField.NUMERIC);
+		monthField.setLayout(Item.LAYOUT_RIGHT);
 		dateConvForm.append(monthField);
 
 		TextField dayField = new TextField("\u0631\u0648\u0632", "", 2,
 				TextField.NUMERIC);
+		dayField.setLayout(Item.LAYOUT_RIGHT);
 		dateConvForm.append(dayField);
 
 		final Command convertCommand = new Command(
@@ -189,6 +190,7 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 		});
 		
 		// Prefill the text fields with the date of today
+		/*
 		AbstractDate today = null;
 		switch(selIndex) {
 		case PERSIAN:
@@ -210,6 +212,7 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 			dayField.setString(today.getDayOfMonth() + "");
 			break;
 		}
+		*/
 		
 		// Make the alert that shows the converted date
 		convDateAlert = new Alert("\u062A\u0628\u062F\u064A\u0644");
@@ -277,7 +280,10 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 		switch (dateConvList.getSelectedIndex()) {
 		case PERSIAN:
 			try {
-				persian = new PersianDate(year, month, day);				
+				persian = new PersianDate(year, month, day);
+			} catch (YearOutOfRangeException e) {
+				showConvErrorAlert(YEAR);
+				return;
 			} catch (MonthOutOfRangeException e) {
 				showConvErrorAlert(MONTH);
 				return;
@@ -302,9 +308,13 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 					+ "\u0628\u0631\u0627\u0628\u0631\u0020\u0645\u064A\u0644\u0627\u062F\u064A:\n"
 					+ civil;
 			break;
+
 		case ISLAMIC:
 			try {
 				islamic = new IslamicDate(year, month, day);
+			} catch (YearOutOfRangeException e) {
+				showConvErrorAlert(YEAR);
+				return;
 			} catch (MonthOutOfRangeException e) {
 				showConvErrorAlert(MONTH);
 				return;
@@ -332,6 +342,9 @@ public class PersianCalendar extends MIDlet implements CommandListener {
 		case CIVIL:
 			try {
 				civil = new CivilDate(year, month, day);
+			} catch (YearOutOfRangeException e) {
+				showConvErrorAlert(YEAR);
+				return;
 			} catch (MonthOutOfRangeException e) {
 				showConvErrorAlert(MONTH);
 				return;
