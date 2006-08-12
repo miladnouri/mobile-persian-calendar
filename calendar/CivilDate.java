@@ -119,6 +119,9 @@ public class CivilDate extends AbstractDate {
 	}
 
 	public void setYear(int year) {
+		if (year == 0)
+			throw new YearOutOfRangeException("Year 0 is invalid!");
+
 		cal.set(Calendar.YEAR, year);
 	}
 	

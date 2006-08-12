@@ -88,6 +88,9 @@ public class PersianDate extends AbstractDate {
 	}
 
 	public void setYear(int year) {
+		if (year == 0)
+			throw new YearOutOfRangeException("Year 0 is invalid!");
+				
 		this.year = year;
 	}
 
